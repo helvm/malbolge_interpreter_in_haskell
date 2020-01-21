@@ -118,14 +118,15 @@ instruction81End state = state { terminated = True }
 stepProgram :: ProgramState -> ProgramState
 stepProgram state = (spAux (regC state)) state
     where spAux i 
-            | i == 4  = instruction4Jmp
-            | i == 5  = instruction5Out
-            | i == 23 = instruction23In
-            | i == 39 = instruction39RotrMov
-            | i == 40 = instruction40Mov
-            | i == 62 = instruction62CrzMov
-            | i == 68 = instruction68Nop
-            | i == 81 = instruction81End
+            | i == 4    = instruction4Jmp
+            | i == 5    = instruction5Out
+            | i == 23   = instruction23In
+            | i == 39   = instruction39RotrMov
+            | i == 40   = instruction40Mov
+            | i == 62   = instruction62CrzMov
+            | i == 68   = instruction68Nop
+            | i == 81   = instruction81End
+            | otherwise = instruction68Nop
 
 getNextInstruction :: ProgramState -> Int
 getNextInstruction state = case (Map.lookup (regC state) (memory state)) of
