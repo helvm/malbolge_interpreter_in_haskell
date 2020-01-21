@@ -5,6 +5,7 @@ import qualified Data.Map as Map
 data ProgramState = ProgramState {
     addrMax :: Int,
     progEnd :: Int,
+    terminated :: Bool,
     regA :: Int,
     regC :: Int,
     regD :: Int,
@@ -29,15 +30,25 @@ padTernary len trits =
     else
         padTernary len (0:trits)
 
+tritCrazyOperation :: Int -> Int -> Int
+tritCrazyOperation a b =
+    | a == b && a != 1 = 1
+    | a == b && a = 1  = 0
+    | a == 0           = 0
+    | a == 2           = 2
+    | a == 1 && b == 0 = 1
+    | a == 1 && b == 2 = 2
+    | otherwise        = 0
+
 crazyOperation :: Int -> Int -> Int
 crazyOperation a b =
     let aTrits = padTernary (intToTernary a) in
-        let btrits = padTernary (intToTernary b) in
+        let bTrits = padTernary (intToTernary b) in
             coAux aTrits bTrits []
-                where coAux [] [] cTrits             = cTrits
-                      coAux [] (bt:bts) cTrits       = -- TODO
-                      coAux (at:ats) [] cTrits       = -- TODO
-                      coAux (at:ats) (bt:bts) cTrits = -- TODO
+                where coAux [] [] cTrits             = reverse cTrits
+                      coAux [] (bt:bts) cTrits       = coAux [] bts ((tritCrazyOperation 0 bt):cTrits)
+                      coAux (at:ats) [] cTrits       = coAux ats [] ((tritCrazyOperation at 0):cTrits)
+                      coAux (at:ats) (bt:bts) cTrits = coAux ats bts ((tritCrazyOperation at bt):cTrits)
 
 
 createZeroedMemory :: Int -> Map.Map Int Int
@@ -49,37 +60,76 @@ initializeProgramState :: Int -> ProgramState
 initializeProgramState maxAddress = ProgramState {
     addrMax = maxAddress,
     progEnd = 1,
+    terminated = False,
     regA = 0, regC = 0, regD = 0,
     memory = createZeroedMemory maxAddress
 }
 
-updateMemory :: Int -> Int -> ProgramState -> ProgramState
-updateMemory address value state = state {
+updateMemoryValue :: Int -> Int -> ProgramState -> ProgramState
+updateMemoryValue address value state = state {
     memory = Map.alter (\_ -> Just value) address (memory state) 
 }
+
+getMemoryValue :: Int -> Map.Map Int Int -> Int
+getMemoryValue address mem = case Map.lookup address mem of
+    Nothing -> 0
+    Some x  -> x
 
 loadProgram :: [Int] -> ProgramState -> ProgramState
 loadProgram values state = lpAux values (state { progEnd = max (length values) 1 }) 0
     where lpAux [] state _     = state
-          lpAux (x:xs) state i = lpAux xs (updateMemory i x state) (i + 1)
+          lpAux (x:xs) state i = lpAux xs (updateMemoryValue i x state) (i + 1)
 
 initialMemoryCellValue :: Int -> Int -> Map.Map Int Int -> Int
-initialMemoryCellValue i j mem = case (Map.lookup i mem, Map.lookup j mem) of
-    (Nothing, Nothing) -> crazyOperation 0 0
-    (Some x, Nothing)  -> crazyOperation x 0
-    (Nothing, Some y)  -> crazyOperation 0 y
-    (Some x, Some y)   -> crazyOperation x y
+initialMemoryCellValue i j mem = crazyOperation (getMemoryValue j mem) (getMemoryValue i mem)
 
 initializeMemory :: ProgramState -> ProgramState
 initializeMemory state = imAux (progEnd state) ((progEnd state) - 1) state
     where imAux i j s
             | i >= (maxAddress state) = s
-            | otherwise               = imAux i (i + 1) (updateMemory (i + 1) (initialMemoryCellValue i j (memory s)) s)
+            | otherwise               = imAux i (i + 1) (updateMemoryValue (i + 1) (initialMemoryCellValue i j (memory s)) s)
 
---stepProgram :: ProgramState -> ProgramState
+instruction4Jmp :: ProgramState -> ProgramState
+instruction4Jmp state = state { regC = getMemoryValue (regD state) (memory state) }
+
+instruction5Out :: ProgramState -> ProgramState
 
 
---stepProgramToEnd :: ProgramState -> ProgramState
+instruction23In :: ProgramState -> ProgramState
 
 
---runProgram :: ProgramState -> ProgramState
+instruction39RotrMov :: ProgramState -> ProgramState
+
+
+instruction40Mov :: ProgramState -> ProgramState
+instruction40Mov state = state { regD = getMemoryValue (regD state) (memory state) }
+
+instruction62CrzMov :: ProgramState -> ProgramState
+instruction62CrzMov state = 
+    let crzda = crazyOperation (getMemoryValue (regD state) (memory state)) (regA state) in
+        updateMemoryValue (regD state) crzda (state { regA = crzda })
+
+instruction68Nop :: ProgramState -> ProgramState
+instruction68Nop state = state
+
+instruction81End :: ProgramState -> ProgramState
+instruction81End state = state { terminated = True }
+
+stepProgram :: ProgramState -> ProgramState
+stepProgram state = spAux (regC state)
+    where spAux i 
+            | i == 4  =
+            | i == 5  =
+            | i == 23 =  
+            | i == 39 = 
+            | i == 40 = 
+            | i == 62 = 
+            | i == 68 = 
+            | i == 81 = 
+
+getNextInstruction :: ProgramState -> Int
+getNextInstruction state = case (Map.lookup (regC state) (memory state)) of
+    Nothing -> mod (regC state) 94
+    Some x  -> mod ((regC state) + x) 94
+
+runProgram :: ProgramState -> ProgramState
